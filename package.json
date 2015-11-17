@@ -9,7 +9,9 @@
   "scripts": {
     "deploy": "gulp"
   },
-  "dependencies": {},
+  "dependencies": {
+    "request": "*"
+  },
   "devDependencies": {
     "gulp": "^3",
     "gulp-awslambda": "*",
