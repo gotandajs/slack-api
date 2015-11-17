@@ -7,9 +7,12 @@
     "node": "^4.2"
   },
   "scripts": {
+    "deploy": "gulp"
   },
-  "dependencies": {
-  },
+  "dependencies": {},
   "devDependencies": {
+    "gulp": "^3",
+    "gulp-awslambda": "*",
+    "gulp-zip": "*"
   }
 }
