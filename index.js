@@ -1,53 +1,65 @@
+"use strict"
+
 var request = require('request');
 
-var api_base;
-
-exports.handler = function(event, context) {
-  if ( ! event.slack_team || ! event.slack_token ) {
-    return context.fail(new Error('undefined slack env'));
+class Slack {
+  constructor(context, team, token) {
+    this.context = context;
+    if ( ! team || ! token ) { return this.error('undefined slack env'); }
+    this.team = team;
+    this.token = token;
+    this.api_base = `https://${team}.slack.com/api`;
   }
-  if ( ! event.action || typeof( actions[ event.action ] ) !== 'function' ) {
-    return context.fail(new Error('undefined action'));
-  }
-  api_base = 'https://' + event.slack_team + '.slack.com/api/';
-  actions[ event.action ](event, context);
-};
 
-var actions = {
-  info: function(event, context) {
-    var params = {
-      url: api_base + 'users.list',
+  getInfo() {
+    const params = {
+      url: this.api_base + '/users.list',
       qs: {
-        token: event.slack_token,
+        token: this.token,
         presence: 1,
       },
     };
-    request.get(params, function(err, response, body) {
-      if ( err ) { return context.fail(err) }
+    request.get(params, (err, response, body) => {
+      if ( err ) { return this.error(err); }
       var info = {};
-      var users = JSON.parse(body).members.filter(function(user) { return ! user.is_bot && ! user.deleted; });
+      var users = JSON.parse(body).members.filter((user) => ( ! user.is_bot && ! user.deleted ));
       info.total = users.length;
-      info.online = users.filter(function(user) { return user.presence === 'active'; }).length;
-      context.succeed(info);
+      info.online = users.filter((user) => ( user.presence === 'active' )).length;
+      this.context.succeed(info);
     });
-  },
+  }
 
-  invite: function(event, context) {
-    if ( ! event.email ) {
-      return context.fail(new Error('undefined email'));
-    }
-    var params = {
-      url: api_base + 'users.admin.invite',
+  invite(email) {
+    if ( ! email ) { this.errpr('undefined email'); }
+    const params = {
+      url: this.api_base + '/users.admin.invite',
       form: {
-        email: event.email,
-        token: event.slack_token,
+        email: email,
+        token: this.token,
         set_active: true,
       },
     };
-    request.post(params, function(err, response, body) {
-      err
-        ? context.fail(err)
-        : context.succeed(JSON.parse(body));
+    request.post(params, (err, response, body) => {
+      if ( err ) { return this.error(err); }
+      this.context.succeed( JSON.parse(body) );
     });
-  },
+  }
+
+  error(message) {
+    return this.context.fail( new Error(message) );
+  }
+}
+
+exports.handler = function(event, context) {
+  var slack = new Slack(context, event.slack_team, event.slack_token);
+  switch ( event.action ) {
+    case 'info':
+      slack.getInfo();
+      break;
+    case 'invite':
+      slack.invite(event.email);
+      break;
+    default:
+      return context.fail( new Error('undefined action') );
+  }
 };
